@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IP 连通性监控</title>
+    <style>
+        body { font-family: monospace; background: #111; color: #0f0; }
+        .up { color: green; }
+        .down { color: red; }
+        .medium { color: orange; }
+        input { padding: 4px; }
+        button { padding: 4px; margin-left: 4px; }
+    </style>
+</head>
+<body>
+<h2>IP 连通性监控</h2>
+
+<div>
+    <input type="text" id="newip" placeholder="输入新 IP">
+    <button onclick="addIP()">添加 IP</button>
+</div>
+
+<div id="box">加载中...</div>
+
+<script>
+function getColor(status, time){
+    if(status=="down") return "down";
+    let t = parseFloat(time);
+    if(isNaN(t)) return "up";
+    if(t < 50) return "up";
+    if(t < 200) return "medium";
+    return "down";
+}
+
+async function load(){
+    let res = await fetch("/status")
+    let data = await res.json()
+    let html = ""
+    for(let ip in data){
+        let cls = getColor(data[ip].status, data[ip].time)
+        html += `<p class="${cls}">${ip} : ${data[ip].status} (${data[ip].time})
+                 <button onclick="deleteIP('${ip}')">删除</button></p>`
+    }
+    document.getElementById("box").innerHTML = html
+}
+
+async function addIP(){
+    let ip = document.getElementById("newip").value.trim()
+    if(!ip){ alert("请输入 IP"); return; }
+    let res = await fetch("/add_ip", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ip})
+    })
+    let data = await res.json()
+    if(data.success){
+        document.getElementById("newip").value = ""
+        load()
+    } else {
+        alert(data.error)
+    }
+}
+
+async function deleteIP(ip){
+    let res = await fetch("/delete_ip", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ip})
+    })
+    let data = await res.json()
+    if(data.success) load()
+    else alert(data.error)
+}
+
+setInterval(load, 3000)
+load()
+</script>
+</body>
+</html>
